@@ -11,7 +11,7 @@
     "migrate": "tsx --env-file=.env src/db/migrate.ts latest",
     "migrate:rollback": "tsx --env-file=.env src/db/migrate.ts rollback",
     "migrate:test": "tsx --env-file=.env.test src/db/migrate.ts latest",
-    "test": "jest",
+    "test": "jest --runInBand",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

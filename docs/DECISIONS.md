@@ -151,6 +151,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Why:** Tests never touch dev data and can safely empty tables between runs.
 - **Detail:** `.env.test` is committed because it only contains the throwaway local Docker credentials already in `docker-compose.yml`. `.env` stays ignored.
 - loaded by a Jest setup file using Node's built-in `util.parseEnv`, written directly into Jest's `process.env` (`process.loadEnvFile` did not reach Jest's sandboxed environment).
+- **Tests run serially (`--runInBand`):** Several test files share and truncate the same tables, so running them in parallel would cause flaky failures.
 
 ### 17. API field naming
 

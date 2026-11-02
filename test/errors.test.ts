@@ -32,4 +32,9 @@ describe('error handling', () => {
     expect(res.status).toBe(413);
     expect(res.body.error.code).toBe('PAYLOAD_TOO_LARGE');
   });
+
+  it('does not reveal the framework in response headers', async () => {
+    const res = await request(app).get('/health');
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
 });
