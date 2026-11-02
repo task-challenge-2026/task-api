@@ -3,6 +3,10 @@ import { insertTask, toTask } from '../src/tasks/task.repository';
 
 const inOneDay = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+afterAll(async () => {
+  await db.destroy();
+});
+
 describe('toTask', () => {
   const row = {
     id: '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90',
@@ -41,10 +45,6 @@ describe('toTask', () => {
 describe('insertTask', () => {
   beforeEach(async () => {
     await db('tasks').truncate();
-  });
-
-  afterAll(async () => {
-    await db.destroy();
   });
 
   it('saves a task and returns it with generated fields', async () => {

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import request from 'supertest';
 import { createApp } from '../src/app';
 import { db } from '../src/db/knex';
@@ -69,5 +70,32 @@ describe('POST /api/v1/tasks', () => {
     expect(res.body.error.details).toEqual([
       expect.objectContaining({ field: 'body', code: 'INVALID_FORMAT' }),
     ]);
+  });
+});
+
+describe('GET /api/v1/tasks/:id', () => {
+  it('returns the task when it exists', async () => {
+    const created = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'Review case bundle', status: 'TODO', dueAt: inOneDay() });
+
+    const res = await request(app).get(`/api/v1/tasks/${created.body.id}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(created.body);
+  });
+
+  it('returns 404 NOT_FOUND when no task has that id', async () => {
+    const res = await request(app).get(`/api/v1/tasks/${randomUUID()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: 'Task not found' } });
+  });
+
+  it('returns 404 NOT_FOUND for an id that is not a valid UUID', async () => {
+    const res = await request(app).get('/api/v1/tasks/not-a-uuid');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
   });
 });

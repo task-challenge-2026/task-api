@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { validationFailed } from '../errors/app-error';
+import { z } from 'zod';
+import { notFound, validationFailed } from '../errors/app-error';
 import { toFieldErrors } from '../errors/validation';
-import { insertTask } from './task.repository';
+import { findTaskById, insertTask } from './task.repository';
 import { createTaskSchema } from './task.schema';
 
 export const taskRouter = Router();
+const isUuid = (value: string) => z.uuid().safeParse(value).success;
 
 taskRouter.post('/', async (req, res) => {
   const result = createTaskSchema.safeParse(req.body);
@@ -14,4 +16,14 @@ taskRouter.post('/', async (req, res) => {
 
   const task = await insertTask(result.data);
   res.status(201).location(`${req.baseUrl}/${task.id}`).json(task);
+});
+
+taskRouter.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!isUuid(id)) throw notFound();
+
+  const task = await findTaskById(id);
+  if (!task) throw notFound();
+
+  res.json(task);
 });

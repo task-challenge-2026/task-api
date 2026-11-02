@@ -48,3 +48,8 @@ export async function insertTask(input: CreateTaskInput): Promise<Task> {
 
   return toTask(row);
 }
+
+export async function findTaskById(id: string): Promise<Task | undefined> {
+  const row = await db<TaskRow>('tasks').where({ id }).first();
+  return row ? toTask(row) : undefined;
+}
