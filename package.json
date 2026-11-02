@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "migrate": "tsx --env-file=.env src/db/migrate.ts latest",
+    "migrate:rollback": "tsx --env-file=.env src/db/migrate.ts rollback",
     "test": "jest",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -16,13 +18,16 @@
     "node": ">=20"
   },
   "dependencies": {
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "knex": "^3.3.0",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
