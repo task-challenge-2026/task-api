@@ -153,9 +153,22 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - loaded by a Jest setup file using Node's built-in `util.parseEnv`, written directly into Jest's `process.env` (`process.loadEnvFile` did not reach Jest's sandboxed environment).
 
 ### 17. API field naming
+
 - **Decision:** API requests and responses use camelCase (`dueAt`, `createdAt`, `isOverdue`). The database uses snake_case (`due_at`). The repository converts between them in one function (`toTask`).
 - **Why:** Consistent naming for API consumers, standard for JavaScript APIs, and database naming stays independent of the API contract.
 - **Dates:** Returned as ISO 8601 strings in UTC (e.g. `2026-11-10T09:00:00.000Z`).
+
+### 18. API base path and versioning
+
+- **Decision:** Task endpoints live under `/api/v1/tasks`. `/health` stays unversioned at the root.
+- **Why:** The brief does not specify URLs. Versioning lets a future `/v2` run alongside `/v1`, so the frontend and other clients are not broken by changes. `/api` separates the API from any pages served on the same host.
+- **Health check:** Unversioned because it is used by infrastructure (load balancers, monitoring), not API clients, and must not move between versions.
+- **Endpoints:**
+  - `POST /api/v1/tasks`: create
+  - `GET /api/v1/tasks`: list (sort, order, status filter)
+  - `GET /api/v1/tasks/:id`: get one
+  - `PATCH /api/v1/tasks/:id/status`: update status
+  - `DELETE /api/v1/tasks/:id`: delete
 
 ## Open
 

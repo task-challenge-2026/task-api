@@ -47,7 +47,7 @@ describe('insertTask', () => {
     await db.destroy();
   });
 
-    it('saves a task and returns it with generated fields', async () => {
+  it('saves a task and returns it with generated fields', async () => {
     const dueAt = inOneDay();
     const task = await insertTask({ title: 'Review case bundle', status: 'TODO', dueAt });
 
@@ -63,7 +63,7 @@ describe('insertTask', () => {
     });
   });
 
-    it('stores the task in the database', async () => {
+  it('stores the task in the database', async () => {
     const task = await insertTask({
       title: 'Prepare hearing',
       status: 'IN_PROGRESS',
@@ -75,5 +75,3 @@ describe('insertTask', () => {
     expect(rows[0].title).toBe('Prepare hearing');
   });
 });
-
-
