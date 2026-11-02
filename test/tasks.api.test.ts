@@ -99,3 +99,73 @@ describe('GET /api/v1/tasks/:id', () => {
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 });
+
+describe('GET /api/v1/tasks', () => {
+  const inDays = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+  async function createTask(title: string, status: string, dueAt: string) {
+    const res = await request(app).post('/api/v1/tasks').send({ title, status, dueAt });
+    return res.body;
+  }
+
+  const titles = (res: request.Response) => res.body.tasks.map((t: { title: string }) => t.title);
+
+  beforeEach(async () => {
+    await createTask('Done soon', 'DONE', inDays(1));
+    await createTask('Todo later', 'TODO', inDays(5));
+    await createTask('On hold', 'ON_HOLD', inDays(3));
+    await createTask('In progress', 'IN_PROGRESS', inDays(2));
+    await createTask('Todo soon', 'TODO', inDays(4));
+  });
+
+  it('returns all tasks wrapped in a tasks array, soonest due first by default', async () => {
+    const res = await request(app).get('/api/v1/tasks');
+
+    expect(res.status).toBe(200);
+    expect(titles(res)).toEqual(['Done soon', 'In progress', 'On hold', 'Todo soon', 'Todo later']);
+  });
+
+  it('sorts by due date descending', async () => {
+    const res = await request(app).get('/api/v1/tasks?sort=dueAt&order=desc');
+
+    expect(titles(res)).toEqual(['Todo later', 'Todo soon', 'On hold', 'In progress', 'Done soon']);
+  });
+
+  it('sorts by status in workflow order, then by due date', async () => {
+    const res = await request(app).get('/api/v1/tasks?sort=status');
+
+    expect(titles(res)).toEqual(['Todo soon', 'Todo later', 'In progress', 'On hold', 'Done soon']);
+  });
+
+  it('sorts by created date', async () => {
+    const res = await request(app).get('/api/v1/tasks?sort=createdAt');
+
+    expect(titles(res)).toEqual(['Done soon', 'Todo later', 'On hold', 'In progress', 'Todo soon']);
+  });
+
+  it('filters by status', async () => {
+    const res = await request(app).get('/api/v1/tasks?status=TODO');
+
+    expect(titles(res)).toEqual(['Todo soon', 'Todo later']);
+  });
+
+  it('returns an empty list when nothing matches', async () => {
+    await db('tasks').truncate();
+    const res = await request(app).get('/api/v1/tasks');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ tasks: [] });
+  });
+
+  it.each([
+    ['an unknown sort field', 'sort=title', 'sort', 'INVALID_VALUE'],
+    ['an unknown order', 'order=sideways', 'order', 'INVALID_VALUE'],
+    ['an unknown status', 'status=CLOSED', 'status', 'INVALID_VALUE'],
+    ['an unknown query parameter', 'colour=red', 'colour', 'UNKNOWN_FIELD'],
+  ])('returns 422 for %s', async (_name, query, field, code) => {
+    const res = await request(app).get(`/api/v1/tasks?${query}`);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toEqual([expect.objectContaining({ field, code })]);
+  });
+});

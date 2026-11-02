@@ -1,6 +1,6 @@
 import { db } from '../db/knex';
-import type { Status } from './statuses';
-import type { CreateTaskInput } from './task.schema';
+import { STATUSES, type Status } from './statuses';
+import type { CreateTaskInput, ListTasksQuery } from './task.schema';
 
 interface TaskRow {
   id: string;
@@ -52,4 +52,24 @@ export async function insertTask(input: CreateTaskInput): Promise<Task> {
 export async function findTaskById(id: string): Promise<Task | undefined> {
   const row = await db<TaskRow>('tasks').where({ id }).first();
   return row ? toTask(row) : undefined;
+}
+
+export async function listTasks({ sort, order, status }: ListTasksQuery): Promise<Task[]> {
+  const query = db<TaskRow>('tasks');
+
+  if (status) query.where({ status });
+
+  if (sort === 'status') {
+    const placeholders = STATUSES.map(() => '?').join(', ');
+    query.orderByRaw(`array_position(ARRAY[${placeholders}]::text[], status::text) ${order}`, [
+      ...STATUSES,
+    ]);
+  } else {
+    query.orderBy(sort === 'createdAt' ? 'created_at' : 'due_at', order);
+  }
+
+  query.orderBy('due_at', 'asc').orderBy('id', 'asc');
+
+  const rows = await query;
+  return rows.map((row) => toTask(row));
 }

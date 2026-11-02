@@ -4,14 +4,14 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 
 ## Scope
 
-| Area      | Brief requires                                           | Decision                                          |
-| --------- | -------------------------------------------------------- | ------------------------------------------------- |
-| Create    | title, description (optional), status, due date/time     | As specified                                      |
-| Read      | one task by ID, all tasks                                | `GET /tasks/:id`, `GET /tasks` (list, not search) |
-| Update    | status only                                              | `PATCH /tasks/:id/status`                         |
-| Delete    | one task                                                 | `DELETE /tasks/:id`                               |
-| Frontend  | full CRUD, user-friendly                                 | GOV.UK Design System via HMCTS frontend starter   |
-| Technical | tests, database, validation and errors, API docs, README | All in scope                                      |
+| Area      | Brief requires                                           | Decision                                                        |
+| --------- | -------------------------------------------------------- | --------------------------------------------------------------- |
+| Create    | title, description (optional), status, due date/time     | `POST /api/v1/tasks`                                            |
+| Read      | one task by ID, all tasks                                | `GET /api/v1/tasks/:id`, `GET /api/v1/tasks` (list, not search) |
+| Update    | status only                                              | `PATCH /api/v1/tasks/:id/status`                                |
+| Delete    | one task                                                 | `DELETE /api/v1/tasks/:id`                                      |
+| Frontend  | full CRUD, user-friendly                                 | GOV.UK Design System via HMCTS frontend starter                 |
+| Technical | tests, database, validation and errors, API docs, README | All in scope                                                    |
 
 ## Decisions
 
@@ -33,7 +33,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 
 ### 4. Due date cannot be in the past on create
 
-- **Decision:** `POST /tasks` rejects a past `dueAt` with 400 and a clear message.
+- **Decision:** `POST /api/v1/tasks` rejects a past `dueAt` with 422 (`DATE_IN_PAST`) and a clear message.
 - **Why:** Prevents data entry errors on new work.
 - **Allowed:** Status updates on overdue tasks, so they can be progressed and closed.
 - **Next step (README):** Historic or backdated tasks would be loaded through an admin-only bulk import with audit logging, not the standard create endpoint.
@@ -43,7 +43,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Decision:** Store `dueAt` in UTC. Display in Europe/London.
 - **Why:** Avoids tasks shifting by an hour across clock changes.
 
-### 6. Sorting and filtering on `GET /tasks`
+### 6. Sorting and filtering on the list endpoint
 
 - **Decision:** User-controlled sorting and an optional status filter.
   - `?sort=dueAt|status|createdAt` (default `dueAt`)
@@ -51,7 +51,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
   - `?status=TODO|IN_PROGRESS|ON_HOLD|DONE` (optional)
 - **Why:** Due date matters most, but caseworkers also navigate by status and by when work arrived.
 - **Detail:** Status sorts by workflow order (TODO, IN_PROGRESS, ON_HOLD, DONE), not alphabetically.
-- **Detail:** Sort and filter values are validated against an allowlist; anything else returns 400. Prevents injection via sort fields and gives clear errors.
+- **Detail:** Sort and filter values are validated against an allowlist; anything else returns 422. Prevents injection via sort fields and gives clear errors.
 - **Next step (README):** Pagination for large caseloads.
 
 ### 7. Stack
@@ -71,7 +71,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Decision:** Schema managed through Knex migrations, with an `up` and a `down` for every change.
 - **Why:** Versioned, repeatable and reversible changes instead of manual SQL. Knex also builds parameterised queries, which protects against SQL injection.
 - **Schema details:**
-  - `title` limited to 200 characters and required; `description` optional (stored as an empty string when not provided, see decision 14)
+  - `title` limited to 200 characters and required; `description` optional (stored as an empty string when not provided, see decision 14).
   - `status` restricted by a database check constraint to `TODO`, `IN_PROGRESS`, `ON_HOLD`, `DONE`, so invalid values are rejected even if they bypass the API.
   - `due_at`, `created_at` and `updated_at` stored as timestamps with time zone (UTC).
   - Indexes on `due_at` and `status`, because the list endpoint sorts and filters on them.
@@ -97,9 +97,9 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Why reject unknown fields:** Catches client typos instead of silently ignoring them, and keeps `PATCH` limited to `status`.
 - **Delete of a missing task:** 404, consistent with other endpoints.
 - **Status on create:** Required. The database default (`TODO`) remains as a safety net only.
-- **Alternative considered:** RFC 9457 Problem Details. A recognised standard, but heavier than needed for this scope.
 - **One error per field:** If a field fails several rules, only the first is returned, so users never see duplicate messages for one input.
 - **Missing vs invalid:** A field that was not sent returns `REQUIRED`; a field that was sent but is wrong returns the specific code.
+- **Alternative considered:** RFC 9457 Problem Details. A recognised standard, but heavier than needed for this scope.
 
 ### 11. User-facing error messages (frontend)
 
@@ -147,10 +147,9 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 
 ### 16. Separate test database
 
-- **Decision:** Tests run against a `tasks_test` database, configured in `.env.test` and loaded by Jest with Node's built-in `process.loadEnvFile()`.
+- **Decision:** Tests run against a `tasks_test` database, configured in `.env.test` and loaded by a Jest setup file using Node's built-in `util.parseEnv`, written directly into Jest's `process.env` (`process.loadEnvFile` did not reach Jest's sandboxed environment).
 - **Why:** Tests never touch dev data and can safely empty tables between runs.
 - **Detail:** `.env.test` is committed because it only contains the throwaway local Docker credentials already in `docker-compose.yml`. `.env` stays ignored.
-- loaded by a Jest setup file using Node's built-in `util.parseEnv`, written directly into Jest's `process.env` (`process.loadEnvFile` did not reach Jest's sandboxed environment).
 - **Tests run serially (`--runInBand`):** Several test files share and truncate the same tables, so running them in parallel would cause flaky failures.
 
 ### 17. API field naming
@@ -171,10 +170,24 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
   - `PATCH /api/v1/tasks/:id/status`: update status
   - `DELETE /api/v1/tasks/:id`: delete
 
+### 19. Response header hardening
+
+- **Decision:** The `X-Powered-By: Express` header is disabled.
+- **Why:** Revealing the framework helps attackers target known vulnerabilities. Removing it costs nothing.
+- **Next step (README):** In production, add `helmet` for a full set of security headers (content security policy, HSTS and others).
+
+### 20. List endpoint (`GET /api/v1/tasks`)
+
+- **Response:** Wrapped as `{ "tasks": [...] }`, so pagination fields (e.g. `total`) can be added later without breaking clients.
+- **Query parameters:** `sort` (`dueAt` default, `status`, `createdAt`), `order` (`asc` default, `desc`), optional `status` filter. Validated with Zod; invalid values return 422 `INVALID_VALUE`.
+- **Unknown query parameters:** Rejected with `UNKNOWN_FIELD`, consistent with the request body rule (decision 10).
+- **Status sort:** Workflow order (TODO, IN_PROGRESS, ON_HOLD, DONE) using `array_position`, not alphabetical.
+- **Tie-breaking:** Always followed by `due_at` ascending, then `id`, so the order is deterministic and never changes between requests.
+- **Safety:** Sort columns come from a fixed mapping, never from user input. The status list is passed as query parameters.
+
 ## Open
 
-- Pagination: deferred (see 6).
-- None beyond pagination.
+- Pagination: deferred (see 6 and 20).
 
 ## AI assistance
 

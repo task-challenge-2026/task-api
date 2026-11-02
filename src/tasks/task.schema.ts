@@ -11,3 +11,13 @@ export const createTaskSchema = z.strictObject({
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+
+export const SORT_FIELDS = ['dueAt', 'status', 'createdAt'] as const;
+
+export const listTasksQuerySchema = z.strictObject({
+  sort: z.enum(SORT_FIELDS).default('dueAt'),
+  order: z.enum(['asc', 'desc']).default('asc'),
+  status: z.enum(STATUSES).optional(),
+});
+
+export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
