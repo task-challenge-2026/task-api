@@ -10,4 +10,3 @@ export const db = knex({
   client: 'pg',
   connection: connectionString,
 });
-
