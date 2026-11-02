@@ -54,15 +54,6 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Detail:** Sort and filter values are validated against an allowlist; anything else returns 400. Prevents injection via sort fields and gives clear errors.
 - **Next step (README):** Pagination for large caseloads.
 
-## Open
-
-- Pagination: deferred (see 6).
-- None beyond pagination.
-
-## AI assistance
-
-- AI used as a pair programmer for scaffolding, test cases and review. Design decisions in this log are mine. To be summarised honestly in the README.
-
 ### 7. Stack
 
 - **Decision:** Node.js + TypeScript, Express 5, Postgres (Docker Compose), Knex for migrations and queries, Jest + Supertest, Zod for validation, OpenAPI for docs. Frontend: HMCTS frontend starter with the GOV.UK Design System.
@@ -80,7 +71,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Decision:** Schema managed through Knex migrations, with an `up` and a `down` for every change.
 - **Why:** Versioned, repeatable and reversible changes instead of manual SQL. Knex also builds parameterised queries, which protects against SQL injection.
 - **Schema details:**
-  - `title` limited to 200 characters and required; `description` optional.
+  - `title` limited to 200 characters and required; `description` optional (stored as an empty string when not provided, see decision 14)
   - `status` restricted by a database check constraint to `TODO`, `IN_PROGRESS`, `ON_HOLD`, `DONE`, so invalid values are rejected even if they bypass the API.
   - `due_at`, `created_at` and `updated_at` stored as timestamps with time zone (UTC).
   - Indexes on `due_at` and `status`, because the list endpoint sorts and filters on them.
@@ -114,17 +105,17 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 
 - **Decision:** The frontend never shows API messages directly. It maps error codes to plain-English text following the GOV.UK Design System error message guidance, shown in an error summary at the top of the page and next to each field.
 
-| Field / code                                            | User sees                                                    |
-| ------------------------------------------------------- | ------------------------------------------------------------ |
-| title / `REQUIRED`                                      | Enter a title                                                |
-| title / `TOO_LONG`                                      | Title must be 200 characters or fewer                        |
-| status / `REQUIRED`                                     | Select a status                                              |
-| status / `INVALID_VALUE`                                | Select a status from the list                                |
-| dueAt / `REQUIRED`                                      | Enter a due date                                             |
-| dueAt / `INVALID_FORMAT`                                | Due date must be a real date                                 |
-| dueAt / DATE_IN_PAST: “Due date must be in the future”. |
-| `NOT_FOUND` (page)                                      | Task not found. It may have been deleted.                    |
-| `INTERNAL_ERROR` / network failure                      | Sorry, there is a problem with the service. Try again later. |
+| Field / code                       | User sees                                                    |
+| ---------------------------------- | ------------------------------------------------------------ |
+| title / `REQUIRED`                 | Enter a title                                                |
+| title / `TOO_LONG`                 | Title must be 200 characters or fewer                        |
+| status / `REQUIRED`                | Select a status                                              |
+| status / `INVALID_VALUE`           | Select a status from the list                                |
+| dueAt / `REQUIRED`                 | Enter a due date                                             |
+| dueAt / `INVALID_FORMAT`           | Due date must be a real date                                 |
+| dueAt / `DATE_IN_PAST`             | Due date must be in the future                               |
+| `NOT_FOUND` (page)                 | Task not found. It may have been deleted.                    |
+| `INTERNAL_ERROR` / network failure | Sorry, there is a problem with the service. Try again later. |
 
 - **Why:** Developer messages and user messages have different audiences. Mapping by code keeps wording consistent, lets content change without touching the API, and follows GOV.UK standards caseworkers already know.
 - **Not shown to users:** `MALFORMED_JSON`, `ROUTE_NOT_FOUND`, `PAYLOAD_TOO_LARGE`, `UNKNOWN_FIELD`. These indicate a frontend bug; the user sees the generic service error and the detail is logged.
@@ -133,3 +124,38 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 
 - **Decision:** `description` is optional and capped at 2000 characters.
 - **Why:** Prevents oversized payloads in a free-text field while leaving room for real case notes.
+
+### 13. Validation rules not covered above
+
+- **Trimming:** Title and description are trimmed before validation, so a whitespace-only title returns `REQUIRED`.
+- **Time zone required on `dueAt`:** Must include `Z` or an offset (e.g. `+01:00`). Local times without a zone are rejected as `INVALID_FORMAT` so the API never guesses. The frontend builds the full value from the GOV.UK date input.
+- **Status column:** `varchar(20)`, enough for current and plausible future status names.
+- **Migration status list:** The migration keeps its own copy of the statuses on purpose. Migrations are frozen snapshots and must not change if the app's list changes.
+
+### 14. No description is stored as an empty string
+
+- **Decision:** `description` is `NOT NULL DEFAULT ''`. Omitting it stores `''`. Sending `null` is rejected (`INVALID_FORMAT`).
+- **Why:** One representation of "no description" instead of two (`NULL` and `''`). GOV.UK forms already submit empty fields as `''`.
+- **Display:** The frontend shows "No description" when it is empty; that text is never stored.
+- **Change made via a new migration**, not by editing the original, because applied migrations must never be rewritten.
+
+### 15. `updated_at` maintained by a database trigger
+
+- **Decision:** A `BEFORE UPDATE` trigger sets `updated_at = now()` on every update.
+- **Why:** Guaranteed for every update path, including future endpoints and manual SQL, so it can never be forgotten in application code.
+- **Trade-off:** Logic lives in the database rather than the app; documented here so it is not hidden.
+
+### 16. Separate test database
+
+- **Decision:** Tests run against a `tasks_test` database, configured in `.env.test` and loaded by Jest with Node's built-in `process.loadEnvFile()`.
+- **Why:** Tests never touch dev data and can safely empty tables between runs.
+- **Detail:** `.env.test` is committed because it only contains the throwaway local Docker credentials already in `docker-compose.yml`. `.env` stays ignored.
+
+## Open
+
+- Pagination: deferred (see 6).
+- None beyond pagination.
+
+## AI assistance
+
+- AI used as a pair programmer for scaffolding, test cases and review. Design decisions in this log are mine. To be summarised honestly in the README.
