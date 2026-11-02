@@ -150,6 +150,12 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Decision:** Tests run against a `tasks_test` database, configured in `.env.test` and loaded by Jest with Node's built-in `process.loadEnvFile()`.
 - **Why:** Tests never touch dev data and can safely empty tables between runs.
 - **Detail:** `.env.test` is committed because it only contains the throwaway local Docker credentials already in `docker-compose.yml`. `.env` stays ignored.
+- loaded by a Jest setup file using Node's built-in `util.parseEnv`, written directly into Jest's `process.env` (`process.loadEnvFile` did not reach Jest's sandboxed environment).
+
+### 17. API field naming
+- **Decision:** API requests and responses use camelCase (`dueAt`, `createdAt`, `isOverdue`). The database uses snake_case (`due_at`). The repository converts between them in one function (`toTask`).
+- **Why:** Consistent naming for API consumers, standard for JavaScript APIs, and database naming stays independent of the API contract.
+- **Dates:** Returned as ISO 8601 strings in UTC (e.g. `2026-11-10T09:00:00.000Z`).
 
 ## Open
 
