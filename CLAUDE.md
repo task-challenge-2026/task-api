@@ -32,17 +32,7 @@ Design decisions are logged in `docs/DECISIONS.md`. Read it before suggesting ch
 
 ## Progress
 
-1. Done: project setup, health endpoint and test.
-2. Done: `tasks` table migration (UUID ids, status check constraint, UTC timestamps, indexes on due_at and status).
-3. In progress: `POST /tasks`
-   - Done: `src/tasks/statuses.ts`, `src/tasks/task.schema.ts` (Zod create schema, `abort: true` on dueAt format).
-   - Done: `src/errors/validation.ts` maps Zod issues to `{ field, code, message }`; one error per field; missing field = REQUIRED; non-object body = field `body`, INVALID_FORMAT.
-   - Next: table-driven unit tests for schema + mapper, then repository (Knex insert), route, error-handling middleware (MALFORMED_JSON, PAYLOAD_TOO_LARGE, ROUTE_NOT_FOUND, INTERNAL_ERROR), integration tests.
-4. To do: GET /tasks/:id, GET /tasks (sort, order, status filter with allowlist), PATCH /tasks/:id/status, DELETE /tasks/:id.
-5. To do: OpenAPI docs at /api-docs.
-6. To do: frontend pages with GOV.UK error summaries mapped from error codes (decision 11).
-7. To do: GitHub Actions CI (lint + tests).
-8. To do: README with setup, endpoints, decisions and AI assistance section.
+Complete. All endpoints (create, get, list with sort and filter, update status, delete, status history), OpenAPI docs, CI and the status audit trail are implemented and tested. The GOV.UK frontend is in the separate task-frontend repository. Next steps are listed in the README.
 
 ## Zod 4 behaviour (verified)
 

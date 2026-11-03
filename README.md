@@ -40,7 +40,7 @@ npm test
 | `DELETE` | `/api/v1/tasks/:id`         | Delete a task                           | `204`   |
 | `GET`    | `/health`                   | Health check                            | `200`   |
 | `GET`    | `/api/v1/tasks/:id/history` | Status audit trail for a task           | `200`   |
-| GET      | /api/v1/tasks/:id/history   | Status audit trail for a task           | 200     |
+
 
 Example:
 
@@ -152,3 +152,5 @@ CI runs formatting, lint, type checking, migrations and the full test suite on e
 ## AI assistance
 
 I used Claude (Anthropic) as a pair programmer during this project: to discuss options, explain libraries and patterns, suggest test cases and review my code. I made the design decisions recorded in `docs/DECISIONS.md`, wrote and reviewed the code, and can explain every part of it. Debugging notes, such as why the test setup loads environment variables with `util.parseEnv`, are recorded in the decisions log.
+
+`CLAUDE.md` holds the project instructions I gave the assistant: conventions, constraints, and how I wanted to work.
