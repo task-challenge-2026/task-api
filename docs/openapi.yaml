@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: HMCTS Caseworker Task API
+  version: 1.0.0
+  description: |
+    API for caseworkers to create, view, update and delete tasks.
+
+    All errors use the same shape: `{ "error": { "code", "message", "details?" } }`.
+    Dates are ISO 8601 strings in UTC.
+servers:
+  - url: http://localhost:4000
+paths:
+  /api/v1/tasks:
+    post:
+      summary: Create a task
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTask'
+      responses:
+        '201':
+          description: Task created
+          headers:
+            Location:
+              description: URL of the new task
+              schema:
+                type: string
+                example: /api/v1/tasks/3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    get:
+      summary: List tasks
+      tags: [Tasks]
+      parameters:
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [dueAt, status, createdAt]
+            default: dueAt
+          description: Field to sort by. Status sorts in workflow order. Ties are broken by due date, then id.
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/Status'
+          description: Only return tasks with this status
+      responses:
+        '200':
+          description: Tasks matching the query
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      summary: Get a task
+      tags: [Tasks]
+      responses:
+        '200':
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete a task
+      tags: [Tasks]
+      responses:
+        '204':
+          description: Task deleted. No response body.
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/tasks/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    patch:
+      summary: Update a task's status
+      tags: [Tasks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/Status'
+      responses:
+        '200':
+          description: The updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /health:
+    get:
+      summary: Health check
+      tags: [Operations]
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: Task id (UUID). Any value that is not a valid UUID returns 404.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    Status:
+      type: string
+      enum: [TODO, IN_PROGRESS, ON_HOLD, DONE]
+    CreateTask:
+      type: object
+      additionalProperties: false
+      required: [title, status, dueAt]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Trimmed. Whitespace only counts as missing.
+          example: Review case bundle
+        description:
+          type: string
+          maxLength: 2000
+          description: Optional. Stored as an empty string when not provided.
+          example: Check exhibits before hearing
+        status:
+          $ref: '#/components/schemas/Status'
+        dueAt:
+          type: string
+          format: date-time
+          description: Must include a time zone (Z or an offset) and be in the future.
+          example: '2026-12-01T09:00:00Z'
+    Task:
+      type: object
+      required: [id, title, description, status, dueAt, createdAt, updatedAt, isOverdue]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/Status'
+        dueAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        isOverdue:
+          type: boolean
+          description: True when the due date has passed and the status is not DONE.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  MALFORMED_JSON,
+                  NOT_FOUND,
+                  ROUTE_NOT_FOUND,
+                  PAYLOAD_TOO_LARGE,
+                  VALIDATION_ERROR,
+                  INTERNAL_ERROR,
+                ]
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          example: title
+        code:
+          type: string
+          enum: [REQUIRED, TOO_LONG, INVALID_FORMAT, INVALID_VALUE, DATE_IN_PAST, UNKNOWN_FIELD]
+        message:
+          type: string
+  responses:
+    MalformedJson:
+      description: Request body is not valid JSON
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Request body is too large
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No task with that id (including ids that are not valid UUIDs)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Task not found
+    ValidationError:
+      description: The request is well-formed but breaks a validation rule
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: The request contains invalid fields
+              details:
+                - field: title
+                  code: REQUIRED
+                  message: Field is required

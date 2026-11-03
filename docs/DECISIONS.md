@@ -192,6 +192,13 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Single query, no read first:** Update and delete each run one query and use the affected row count to detect a missing task. Faster, and avoids a race where the task changes between a check and the write.
 - **Order of checks:** Invalid ID returns 404 before the body is validated, so the response for a bad ID is always the same.
 
+### 22. API documentation
+
+- **Decision:** Hand-written OpenAPI 3 spec in `docs/openapi.yaml`, served as interactive Swagger UI at `/api-docs` and raw JSON at `/api-docs/openapi.json`.
+- **Why hand-written:** Readable and reviewable as a document, with validation rules described in plain language.
+- **Drift protection:** A test compares the routes registered in Express with the paths in the spec, in both directions, so an undocumented or stale endpoint fails CI.
+- **Alternative considered:** Generating the spec from the Zod schemas. Guarantees accuracy of field rules but adds a library and setup; the drift test covers the main risk at lower cost.
+
 ## Open
 
 - Pagination: deferred (see 6 and 20).
