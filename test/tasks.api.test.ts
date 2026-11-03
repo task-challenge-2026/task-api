@@ -169,3 +169,107 @@ describe('GET /api/v1/tasks', () => {
     expect(res.body.error.details).toEqual([expect.objectContaining({ field, code })]);
   });
 });
+
+describe('PATCH /api/v1/tasks/:id/status', () => {
+  async function createTask() {
+    const res = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'Review case bundle', status: 'TODO', dueAt: inOneDay() });
+    return res.body;
+  }
+
+  it('updates the status and returns the updated task', async () => {
+    const task = await createTask();
+
+    const res = await request(app)
+      .patch(`/api/v1/tasks/${task.id}/status`)
+      .send({ status: 'IN_PROGRESS' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ...task, status: 'IN_PROGRESS', updatedAt: expect.any(String) });
+  });
+
+  it('moves updatedAt forward via the database trigger', async () => {
+    const task = await createTask();
+
+    const res = await request(app)
+      .patch(`/api/v1/tasks/${task.id}/status`)
+      .send({ status: 'DONE' });
+
+    expect(new Date(res.body.updatedAt).getTime()).toBeGreaterThan(
+      new Date(task.createdAt).getTime(),
+    );
+  });
+
+  it('can update an overdue task, which stops being overdue once done', async () => {
+    const [row] = await db('tasks')
+      .insert({ title: 'Overdue task', status: 'TODO', due_at: new Date('2020-01-01T09:00:00Z') })
+      .returning('id');
+
+    const before = await request(app).get(`/api/v1/tasks/${row.id}`);
+    expect(before.body.isOverdue).toBe(true);
+
+    const res = await request(app).patch(`/api/v1/tasks/${row.id}/status`).send({ status: 'DONE' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.isOverdue).toBe(false);
+  });
+
+  it.each([
+    ['a missing status', {}, 'status', 'REQUIRED'],
+    ['an unknown status', { status: 'CLOSED' }, 'status', 'INVALID_VALUE'],
+    ['any other field', { status: 'DONE', title: 'New title' }, 'title', 'UNKNOWN_FIELD'],
+  ])('returns 422 for %s', async (_name, body, field, code) => {
+    const task = await createTask();
+
+    const res = await request(app).patch(`/api/v1/tasks/${task.id}/status`).send(body);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toEqual([expect.objectContaining({ field, code })]);
+  });
+
+  it('does not change the task when validation fails', async () => {
+    const task = await createTask();
+
+    await request(app).patch(`/api/v1/tasks/${task.id}/status`).send({ status: 'CLOSED' });
+
+    const res = await request(app).get(`/api/v1/tasks/${task.id}`);
+    expect(res.body.status).toBe('TODO');
+  });
+
+  it.each([
+    ['an unknown id', () => randomUUID()],
+    ['an invalid id', () => 'not-a-uuid'],
+  ])('returns 404 NOT_FOUND for %s', async (_name, id) => {
+    const res = await request(app).patch(`/api/v1/tasks/${id()}/status`).send({ status: 'DONE' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('DELETE /api/v1/tasks/:id', () => {
+  it('deletes the task and returns 204 with no body', async () => {
+    const created = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'Review case bundle', status: 'TODO', dueAt: inOneDay() });
+
+    const res = await request(app).delete(`/api/v1/tasks/${created.body.id}`);
+
+    expect(res.status).toBe(204);
+    expect(res.text).toBe('');
+
+    const after = await request(app).get(`/api/v1/tasks/${created.body.id}`);
+    expect(after.status).toBe(404);
+  });
+
+  it.each([
+    ['an unknown id', () => randomUUID()],
+    ['an invalid id', () => 'not-a-uuid'],
+  ])('returns 404 NOT_FOUND for %s', async (_name, id) => {
+    const res = await request(app).delete(`/api/v1/tasks/${id()}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+});

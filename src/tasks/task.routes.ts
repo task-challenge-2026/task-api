@@ -2,10 +2,17 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { notFound, validationFailed } from '../errors/app-error';
 import { toFieldErrors } from '../errors/validation';
-import { findTaskById, insertTask, listTasks } from './task.repository';
-import { createTaskSchema, listTasksQuerySchema } from './task.schema';
+import {
+  deleteTask,
+  findTaskById,
+  insertTask,
+  listTasks,
+  updateTaskStatus,
+} from './task.repository';
+import { createTaskSchema, listTasksQuerySchema, updateTaskStatusSchema } from './task.schema';
 
 export const taskRouter = Router();
+
 const isUuid = (value: string) => z.uuid().safeParse(value).success;
 
 taskRouter.post('/', async (req, res) => {
@@ -36,4 +43,29 @@ taskRouter.get('/:id', async (req, res) => {
   if (!task) throw notFound();
 
   res.json(task);
+});
+
+taskRouter.patch('/:id/status', async (req, res) => {
+  const { id } = req.params;
+  if (!isUuid(id)) throw notFound();
+
+  const result = updateTaskStatusSchema.safeParse(req.body);
+  if (!result.success) {
+    throw validationFailed(toFieldErrors(result.error, req.body));
+  }
+
+  const task = await updateTaskStatus(id, result.data.status);
+  if (!task) throw notFound();
+
+  res.json(task);
+});
+
+taskRouter.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!isUuid(id)) throw notFound();
+
+  const deleted = await deleteTask(id);
+  if (!deleted) throw notFound();
+
+  res.status(204).end();
 });

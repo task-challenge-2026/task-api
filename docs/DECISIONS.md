@@ -185,6 +185,13 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Tie-breaking:** Always followed by `due_at` ascending, then `id`, so the order is deterministic and never changes between requests.
 - **Safety:** Sort columns come from a fixed mapping, never from user input. The status list is passed as query parameters.
 
+### 21. Update and delete responses
+
+- **PATCH `/api/v1/tasks/:id/status`:** Returns 200 with the full updated task, so the frontend can show the new status and `updatedAt` without a second request. Accepts `status` only.
+- **DELETE `/api/v1/tasks/:id`:** Returns 204 No Content with an empty body.
+- **Single query, no read first:** Update and delete each run one query and use the affected row count to detect a missing task. Faster, and avoids a race where the task changes between a check and the write.
+- **Order of checks:** Invalid ID returns 404 before the body is validated, so the response for a bad ID is always the same.
+
 ## Open
 
 - Pagination: deferred (see 6 and 20).

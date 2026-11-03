@@ -21,3 +21,9 @@ export const listTasksQuerySchema = z.strictObject({
 });
 
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
+
+export const updateTaskStatusSchema = z.strictObject({
+  status: z.enum(STATUSES),
+});
+
+export type UpdateTaskStatusInput = z.infer<typeof updateTaskStatusSchema>;

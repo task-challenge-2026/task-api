@@ -73,3 +73,13 @@ export async function listTasks({ sort, order, status }: ListTasksQuery): Promis
   const rows = await query;
   return rows.map((row) => toTask(row));
 }
+
+export async function updateTaskStatus(id: string, status: Status): Promise<Task | undefined> {
+  const [row] = await db<TaskRow>('tasks').where({ id }).update({ status }).returning('*');
+  return row ? toTask(row) : undefined;
+}
+
+export async function deleteTask(id: string): Promise<boolean> {
+  const deleted = await db('tasks').where({ id }).delete();
+  return deleted > 0;
+}
