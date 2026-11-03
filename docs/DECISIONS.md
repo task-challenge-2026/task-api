@@ -169,6 +169,7 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
   - `GET /api/v1/tasks/:id`: get one
   - `PATCH /api/v1/tasks/:id/status`: update status
   - `DELETE /api/v1/tasks/:id`: delete
+  - `GET /api/v1/tasks/:id/history`: status audit trail
 
 ### 19. Response header hardening
 
@@ -198,6 +199,28 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Why hand-written:** Readable and reviewable as a document, with validation rules described in plain language.
 - **Drift protection:** A test compares the routes registered in Express with the paths in the spec, in both directions, so an undocumented or stale endpoint fails CI.
 - **Alternative considered:** Generating the spec from the Zod schemas. Guarantees accuracy of field rules but adds a library and setup; the drift test covers the main risk at lower cost.
+
+### 23. Continuous integration
+
+- **Decision:** GitHub Actions runs on every push to `main` and every pull request: formatting check, lint, type check, test migrations, then the full test suite against a real Postgres 16 service.
+- **Why:** Proves the project works on a clean machine, not just mine, and stops broken code reaching `main` unnoticed.
+- **Detail:** Cheapest checks run first so failures are fast. `npm ci` installs exact locked versions. A health check waits for Postgres before migrating.
+
+### 24. Status audit trail
+
+- **Decision:** Every status change is recorded in a `task_status_history` table: task, previous status, new status, and when it changed. This includes the initial status on creation and a final entry when a task is deleted.
+- **Why:** Casework must be auditable. Overwriting a status loses the record of what happened and when.
+- **How:** A database trigger (`AFTER INSERT OR UPDATE OF status OR DELETE`) writes the history, the same approach as decision 15. It cannot be bypassed or forgotten by any endpoint, current or future, or by manual SQL.
+- **Nothing is wiped:** History has no foreign key to `tasks`, so it is retained after a task is deleted, with a final entry recording the deletion. The API only exposes history for tasks that still exist.
+- **No-op updates:** Setting a task to the status it already has does not create an entry.
+- **Endpoint:** `GET /api/v1/tasks/:id/history`, oldest first, wrapped as `{ "history": [...] }`.
+- **Next step (README):** Record who made each change once authentication exists, and an optional reason for the change (e.g. "On hold: awaiting evidence").
+
+### 25. Task deletion permissions (next step)
+
+- **Next step (README):** Deleting a task should be restricted to an elevated role, such as a department manager. Caseworkers would progress tasks to `DONE` rather than delete them.
+- **Why not now:** There are no users or roles yet (decision 1).
+- **Ready for it:** Delete is a single, separate endpoint (`DELETE /api/v1/tasks/:id`), so a role check can be added in one place. Deletions are already recorded in the audit trail (decision 24), so nothing is lost even before permissions exist.
 
 ## Open
 

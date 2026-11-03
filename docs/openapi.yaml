@@ -99,6 +99,31 @@ paths:
           description: Task deleted. No response body.
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/tasks/{id}/history:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      summary: Get a task's status history
+      description: |
+        Audit trail of every status change, oldest first. Recorded automatically by the database,
+        including the initial status on creation. History is retained after a task is deleted,
+        but is not available through the API once the task no longer exists.
+      tags: [Tasks]
+      responses:
+        '200':
+          description: Status history for the task
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [history]
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StatusChange'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/tasks/{id}/status:
     parameters:
       - $ref: '#/components/parameters/TaskId'
@@ -204,6 +229,20 @@ components:
         isOverdue:
           type: boolean
           description: True when the due date has passed and the status is not DONE.
+    StatusChange:
+      type: object
+      required: [fromStatus, toStatus, changedAt]
+      properties:
+        fromStatus:
+          allOf:
+            - $ref: '#/components/schemas/Status'
+          nullable: true
+          description: Null for the first entry, when the task was created.
+        toStatus:
+          $ref: '#/components/schemas/Status'
+        changedAt:
+          type: string
+          format: date-time
     Error:
       type: object
       required: [error]

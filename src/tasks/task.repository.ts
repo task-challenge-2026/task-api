@@ -12,6 +12,20 @@ interface TaskRow {
   updated_at: Date;
 }
 
+interface StatusHistoryRow {
+  id: number;
+  task_id: string;
+  from_status: Status | null;
+  to_status: Status | null;
+  changed_at: Date;
+}
+
+export interface StatusChange {
+  fromStatus: Status | null;
+  toStatus: Status | null;
+  changedAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -82,4 +96,17 @@ export async function updateTaskStatus(id: string, status: Status): Promise<Task
 export async function deleteTask(id: string): Promise<boolean> {
   const deleted = await db('tasks').where({ id }).delete();
   return deleted > 0;
+}
+
+export async function findStatusHistory(taskId: string): Promise<StatusChange[]> {
+  const rows = await db<StatusHistoryRow>('task_status_history')
+    .select('from_status', 'to_status', 'changed_at')
+    .where({ task_id: taskId })
+    .orderBy('id', 'asc');
+
+  return rows.map((row) => ({
+    fromStatus: row.from_status,
+    toStatus: row.to_status,
+    changedAt: row.changed_at.toISOString(),
+  }));
 }

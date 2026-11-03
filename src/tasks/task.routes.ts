@@ -4,6 +4,7 @@ import { notFound, validationFailed } from '../errors/app-error';
 import { toFieldErrors } from '../errors/validation';
 import {
   deleteTask,
+  findStatusHistory,
   findTaskById,
   insertTask,
   listTasks,
@@ -43,6 +44,17 @@ taskRouter.get('/:id', async (req, res) => {
   if (!task) throw notFound();
 
   res.json(task);
+});
+
+taskRouter.get('/:id/history', async (req, res) => {
+  const { id } = req.params;
+  if (!isUuid(id)) throw notFound();
+
+  const task = await findTaskById(id);
+  if (!task) throw notFound();
+
+  const history = await findStatusHistory(id);
+  res.json({ history });
 });
 
 taskRouter.patch('/:id/status', async (req, res) => {

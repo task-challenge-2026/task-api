@@ -8,6 +8,7 @@ const inOneDay = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
 beforeEach(async () => {
   await db('tasks').truncate();
+  await db('task_status_history').truncate();
 });
 
 afterAll(async () => {
@@ -271,5 +272,84 @@ describe('DELETE /api/v1/tasks/:id', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('GET /api/v1/tasks/:id/history', () => {
+  async function createTask() {
+    const res = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'Review case bundle', status: 'TODO', dueAt: inOneDay() });
+    return res.body;
+  }
+
+  const changes = (res: request.Response) =>
+    res.body.history.map((h: { fromStatus: string | null; toStatus: string | null }) => [
+      h.fromStatus,
+      h.toStatus,
+    ]);
+
+  it('records the initial status when a task is created', async () => {
+    const task = await createTask();
+
+    const res = await request(app).get(`/api/v1/tasks/${task.id}/history`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      history: [{ fromStatus: null, toStatus: 'TODO', changedAt: expect.any(String) }],
+    });
+  });
+
+  it('records every status change in order', async () => {
+    const task = await createTask();
+    await request(app).patch(`/api/v1/tasks/${task.id}/status`).send({ status: 'IN_PROGRESS' });
+    await request(app).patch(`/api/v1/tasks/${task.id}/status`).send({ status: 'ON_HOLD' });
+
+    const res = await request(app).get(`/api/v1/tasks/${task.id}/history`);
+
+    expect(changes(res)).toEqual([
+      [null, 'TODO'],
+      ['TODO', 'IN_PROGRESS'],
+      ['IN_PROGRESS', 'ON_HOLD'],
+    ]);
+  });
+
+  it('does not record an update that leaves the status unchanged', async () => {
+    const task = await createTask();
+    await request(app).patch(`/api/v1/tasks/${task.id}/status`).send({ status: 'TODO' });
+
+    const res = await request(app).get(`/api/v1/tasks/${task.id}/history`);
+
+    expect(changes(res)).toEqual([[null, 'TODO']]);
+  });
+
+  it('keeps the history and records the deletion when a task is deleted', async () => {
+    const task = await createTask();
+    await request(app).delete(`/api/v1/tasks/${task.id}`);
+
+    const rows = await db('task_status_history').where({ task_id: task.id }).orderBy('id');
+    expect(rows.map((r) => [r.from_status, r.to_status])).toEqual([
+      [null, 'TODO'],
+      ['TODO', null],
+    ]);
+  });
+
+  it.each([
+    ['an unknown id', () => randomUUID()],
+    ['an invalid id', () => 'not-a-uuid'],
+  ])('returns 404 NOT_FOUND for %s', async (_name, id) => {
+    const res = await request(app).get(`/api/v1/tasks/${id()}/history`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 404 NOT_FOUND for a deleted task', async () => {
+    const task = await createTask();
+    await request(app).delete(`/api/v1/tasks/${task.id}`);
+
+    const res = await request(app).get(`/api/v1/tasks/${task.id}/history`);
+
+    expect(res.status).toBe(404);
   });
 });

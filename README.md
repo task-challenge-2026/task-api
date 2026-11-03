@@ -143,6 +143,7 @@ CI runs formatting, lint, type checking, migrations and the full test suite on e
 - **Security headers with `helmet`** and rate limiting.
 - **An admin-only bulk import** with audit logging for historic tasks, which the create endpoint deliberately does not allow.
 - **Structured logging and monitoring** in place of `console.error`.
+- **Role-based permissions:** restrict task deletion to an elevated role such as a department manager, and record who made each status change in the audit trail.
 
 ## AI assistance
 
