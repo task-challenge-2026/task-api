@@ -41,7 +41,6 @@ npm test
 | `GET`    | `/health`                   | Health check                            | `200`   |
 | `GET`    | `/api/v1/tasks/:id/history` | Status audit trail for a task           | `200`   |
 
-
 Example:
 
 ```bash
