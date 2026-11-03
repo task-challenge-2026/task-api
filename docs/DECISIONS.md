@@ -222,6 +222,20 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Why not now:** There are no users or roles yet (decision 1).
 - **Ready for it:** Delete is a single, separate endpoint (`DELETE /api/v1/tasks/:id`), so a role check can be added in one place. Deletions are already recorded in the audit trail (decision 24), so nothing is lost even before permissions exist.
 
+### 26. Error summary keeps GOV.UK autofocus
+
+- **Decision:** On a validation error, focus moves to the GOV.UK error summary at the top of the page. `disableAutoFocus` is not used.
+- **Why:** The GOV.UK Design System requires focus to move to the error summary. Screen reader and keyboard users hear "There is a problem" and every error first, and each summary link jumps straight to its field.
+- **Detail:** Forms are server-rendered, so the page reloads at the top regardless. Removing autofocus would only stop the errors being announced.
+- **Considered:** Keeping focus on the field being edited. Rejected because it goes against GOV.UK accessibility guidance.
+
+### 27. No disabled submit button
+
+- **Decision:** The "Create task" button stays active while errors are showing. Users fix the fields and resubmit.
+- **Why:** GOV.UK advises against disabled buttons: poor contrast, they confuse some users, and they don't say what is wrong. Specific error messages tell users how to fix the problem.
+- **Detail:** Disabling the button would need client-side validation, which duplicates the server's rules and breaks the form without JavaScript. GOV.UK says to add client-side validation only where there is a user need for it.
+- **Considered:** Greying out the button until errors are fixed. Rejected for the reasons above.
+
 ## Open
 
 - Pagination: deferred (see 6 and 20).

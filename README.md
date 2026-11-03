@@ -29,14 +29,15 @@ npm test
 
 ## API overview
 
-| Method   | Endpoint                   | Description                             | Success |
-| -------- | -------------------------- | --------------------------------------- | ------- |
-| `POST`   | `/api/v1/tasks`            | Create a task                           | `201`   |
-| `GET`    | `/api/v1/tasks`            | List tasks (sort, order, status filter) | `200`   |
-| `GET`    | `/api/v1/tasks/:id`        | Get a task                              | `200`   |
-| `PATCH`  | `/api/v1/tasks/:id/status` | Update a task's status                  | `200`   |
-| `DELETE` | `/api/v1/tasks/:id`        | Delete a task                           | `204`   |
-| `GET`    | `/health`                  | Health check                            | `200`   |
+| Method   | Endpoint                    | Description                             | Success |
+| -------- | --------------------------- | --------------------------------------- | ------- |
+| `POST`   | `/api/v1/tasks`             | Create a task                           | `201`   |
+| `GET`    | `/api/v1/tasks`             | List tasks (sort, order, status filter) | `200`   |
+| `GET`    | `/api/v1/tasks/:id`         | Get a task                              | `200`   |
+| `PATCH`  | `/api/v1/tasks/:id/status`  | Update a task's status                  | `200`   |
+| `DELETE` | `/api/v1/tasks/:id`         | Delete a task                           | `204`   |
+| `GET`    | `/health`                   | Health check                            | `200`   |
+| `GET`    | `/api/v1/tasks/:id/history` | Status audit trail for a task           | `200`   |
 
 Example:
 
