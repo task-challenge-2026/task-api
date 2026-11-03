@@ -236,6 +236,48 @@ Running log of design decisions and reasons. Feeds the README's "Decisions and t
 - **Detail:** Disabling the button would need client-side validation, which duplicates the server's rules and breaks the form without JavaScript. GOV.UK says to add client-side validation only where there is a user need for it.
 - **Considered:** Greying out the button until errors are fixed. Rejected for the reasons above.
 
+### 28. Frontend calls the API server-side
+
+- **Decision:** The Express frontend calls the API with axios from its own server. The browser only ever talks to the frontend.
+- **Why:** No CORS configuration needed, the API is not exposed to the public, and pages work without JavaScript.
+- **Detail:** The API location is configured with `API_URL` (default `http://localhost:4000`). Requests time out after 5 seconds. If the API is unreachable, users see the GOV.UK "Sorry, there is a problem with the service" page.
+
+### 29. Due date entered as date plus time, in UK time
+
+- **Decision:** GOV.UK date input extended with hour and minute boxes, labelled "Use the 24-hour clock, UK time". Converted from Europe/London to UTC before it is sent to the API.
+- **Why:** The time matters for caseworker deadlines and audit logs. Without conversion, every due date set during British Summer Time would be stored an hour out.
+- **Detail:** Conversion uses the built-in `Intl` API with a two-pass offset calculation, so it handles the days the clocks change. No date library was added. Covered by unit tests for GMT, BST and the clock change.
+
+### 30. Date checked locally, business rules checked by the API
+
+- **Decision:** The frontend checks that the date boxes form a real date and time. The API remains the only place that enforces "must be in the future" and every other rule.
+- **Why:** An unreal date (31 February) cannot be turned into a timestamp to send. Keeping all business rules in the API means one source of truth.
+- **Detail:** If the date is invalid, the form is still sent without it, so the user sees every error at once. The local date error replaces the API's.
+
+### 31. API error codes mapped to GOV.UK wording
+
+- **Decision:** One table maps each field and code to a GOV.UK-style message ("Enter a title", "Select a status").
+- **Why:** Users never see technical messages, and the wording follows GOV.UK error message guidance.
+- **Detail:** An unexpected code shows the generic error page rather than a half-built error list (fail closed).
+
+### 32. Post/Redirect/Get with success banners
+
+- **Decision:** Every successful form redirects. A GOV.UK success notification banner is driven by an allowlisted query key (`?success=created`).
+- **Why:** Refreshing the page cannot resubmit a form. The URL cannot be used to inject arbitrary banner text.
+- **Considered:** Toast pop-ups. Rejected as not a GOV.UK pattern and inaccessible.
+
+### 33. Deletion uses a confirmation page, not a modal
+
+- **Decision:** "Delete task" opens a confirmation page that names the task and warns it cannot be undone. The delete itself is a POST.
+- **Why:** This is the GOV.UK pattern. It works without JavaScript, and nothing destructive happens on a GET.
+
+### 34. Fixes to the HMCTS frontend starter
+
+- **Error handler never ran:** Express only treats middleware with four parameters as an error handler. The starter's had three, so errors were never handled. Fixed, and it no longer shows error details to users.
+- **CI never ran:** the workflows targeted `master` and the repo uses `main`. The starter's `yarn test` script exits successfully when `CI=true`, so CI calls the test scripts directly.
+- **Node 22 crash:** Yarn PnP's loader broke `ts-node` on Node 22. Switched Yarn to the `node-modules` linker.
+- **Header:** `X-Powered-By` disabled, matching the API.
+
 ## Open
 
 - Pagination: deferred (see 6 and 20).

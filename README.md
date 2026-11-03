@@ -4,6 +4,8 @@
 
 Backend for a task management system that lets HMCTS caseworkers create, view, update and delete their tasks. Built for the [DTS developer challenge](https://github.com/hmcts/dts-developer-challenge).
 
+The GOV.UK frontend for this API is in a separate repository: [task-frontend](https://github.com/task-challenge-2026/task-frontend).
+
 Interactive API documentation is available at **`/api-docs`** once the app is running.
 
 ## Quick start
@@ -38,6 +40,7 @@ npm test
 | `DELETE` | `/api/v1/tasks/:id`         | Delete a task                           | `204`   |
 | `GET`    | `/health`                   | Health check                            | `200`   |
 | `GET`    | `/api/v1/tasks/:id/history` | Status audit trail for a task           | `200`   |
+| GET      | /api/v1/tasks/:id/history   | Status audit trail for a task           | 200     |
 
 Example:
 
