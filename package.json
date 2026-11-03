@@ -13,7 +13,8 @@
     "migrate:test": "tsx --env-file=.env.test src/db/migrate.ts latest",
     "test": "jest --runInBand",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=20.12"
